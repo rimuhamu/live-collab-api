@@ -9,12 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type AuthHandler struct {
-	DB        *sql.DB
-	JWTSecret string
-}
-
-func (h *AuthHandler) Register(c *gin.Context) {
+func (s *AuthService) Register(c *gin.Context) {
 	var req struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -31,7 +26,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	_, err = h.DB.Exec("INSERT INTO users (email, password) VALUES ($1, $2)", req.Email, hash)
+	_, err = s.DB.Exec("INSERT INTO users (email, password) VALUES ($1, $2)", req.Email, hash)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
 			c.JSON(http.StatusConflict, gin.H{"error": "User already exists"})
@@ -44,7 +39,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "User created successfully"})
 }
 
-func (h *AuthHandler) Login(c *gin.Context) {
+func (s *AuthService) Login(c *gin.Context) {
 	var req struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -57,7 +52,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	var id int
 	var hash string
-	err := h.DB.QueryRow("SELECT id, password FROM users WHERE email = $1", req.Email).Scan(&id, &hash)
+	err := s.DB.QueryRow("SELECT id, password FROM users WHERE email = $1", req.Email).Scan(&id, &hash)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
@@ -72,7 +67,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := GenerateJWT(id, h.JWTSecret)
+	token, err := GenerateJWT(id, s.JWTSecret)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Token generation failed"})
 		return
