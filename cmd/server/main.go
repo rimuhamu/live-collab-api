@@ -13,13 +13,20 @@ import (
 func main() {
 	cfg := config.LoadConfig()
 	database := db.Connect(cfg.DBUrl)
+	jwtSecret := cfg.JWTSecret
 
-	authHandler := &auth.AuthHandler{DB: database, JWTSecret: cfg.JWTSecret}
+	authService := &auth.AuthService{
+		DB:        database,
+		JWTSecret: jwtSecret,
+	}
 
 	router := gin.Default()
-	router.POST("/register", authHandler.Register)
-	router.POST("/login", authHandler.Login)
+
+	router.POST("/register", authService.Register)
+	router.POST("/login", authService.Login)
 
 	log.Println("Server running on :8080")
-	http.ListenAndServe(":8080", router)
+	if err := http.ListenAndServe(":8080", router); err != nil {
+		log.Fatal("Server failed to start:", err)
+	}
 }
