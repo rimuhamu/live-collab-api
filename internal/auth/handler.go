@@ -57,7 +57,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	var id int
 	var hash string
-	err := h.DB.QueryRow("SELECT id FROM users WHERE email = $1", req.Email).Scan(&id, &hash)
+	err := h.DB.QueryRow("SELECT id, password FROM users WHERE email = $1", req.Email).Scan(&id, &hash)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
