@@ -62,6 +62,12 @@ func (h *DocumentHandler) Create(c *gin.Context) {
 func (h *DocumentHandler) GetByID(c *gin.Context) {
 	documentId := c.Param("id")
 
+	userId, err := h.AuthService.GetUserIDFromGinContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
 	var doc struct {
 		ID          int    `json:"id"`
 		Title       string `json:"title"`
@@ -72,8 +78,8 @@ func (h *DocumentHandler) GetByID(c *gin.Context) {
 		UpdatedAt   string `json:"updated_at"`
 	}
 
-	err := h.DB.QueryRow("SELECT id, title, content, content_type, owner_id, created_at, updated_at FROM documents WHERE id = $1",
-		documentId,
+	err = h.DB.QueryRow("SELECT id, title, content, content_type, owner_id, created_at, updated_at FROM documents WHERE id = $1 AND owner_id = $2",
+		documentId, userId,
 	).Scan(&doc.ID, &doc.Title, &doc.Content, &doc.ContentType, &doc.OwnerID, &doc.CreatedAt, &doc.UpdatedAt)
 
 	if err != nil {
@@ -136,7 +142,6 @@ func (h *DocumentHandler) GetAll(c *gin.Context) {
 	fmt.Printf("DEBUG: Total rows processed: %d\n", rowCount)
 	if documents == nil {
 		documents = []map[string]interface{}{}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 	}
 
 	c.JSON(http.StatusOK, gin.H{"documents": documents})
@@ -158,6 +163,7 @@ func (h *DocumentHandler) Update(c *gin.Context) {
 	userId, err := h.AuthService.GetUserIDFromGinContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
 	}
 
 	result, err := h.DB.Exec("UPDATE documents SET title = $1, content = $2, content_type = $3 WHERE id = $4 AND owner_id = $5",
