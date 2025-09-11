@@ -104,6 +104,39 @@ func (s *AuthService) Login(c *gin.Context) {
 
 }
 
+// Me godoc
+// @Summary Get current user profile
+// @Description Get current authenticated user information
+// @Tags user
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} UserProfileResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /me [get]
+func (s *AuthService) Me(c *gin.Context) {
+	userID, err := s.GetUserIDFromGinContext(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "User context not found"})
+		return
+	}
+
+	// Get additional user info from database
+	var email string
+	var createdAt string
+	err = s.DB.QueryRow("SELECT email, created_at FROM users WHERE id = $1", userID).Scan(&email, &createdAt)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
+		return
+	}
+
+	c.JSON(http.StatusOK, UserProfileResponse{
+		UserID:    userID,
+		Email:     email,
+		CreatedAt: createdAt,
+	})
+}
+
 // Swagger models for auth endpoints
 
 type RegisterRequest struct {
@@ -119,6 +152,12 @@ type LoginRequest struct {
 type LoginResponse struct {
 	Token  string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzY5OTc4NTYsInVzZXJfaWQiOjF9.Xg2Lv8K3oPHx9vXzF2dA1kT7mN8qR5wE"`
 	UserID int    `json:"user_id" example:"1"`
+}
+
+type UserProfileResponse struct {
+	UserID    int    `json:"user_id" example:"1"`
+	Email     string `json:"email" example:"user@example.com"`
+	CreatedAt string `json:"created_at" example:"2024-01-15T10:30:00Z"`
 }
 
 type MessageResponse struct {

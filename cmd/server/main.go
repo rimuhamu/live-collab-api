@@ -76,6 +76,8 @@ func main() {
 	protected := router.Group("/")
 	protected.Use(authService.AuthMiddleware())
 	{
+		protected.GET("/me", authService.Me)
+
 		router.POST("/documents", documentsHandler.Create)
 		router.GET("/documents", documentsHandler.GetAll)
 		router.GET("/documents/:id", documentsHandler.GetByID)
