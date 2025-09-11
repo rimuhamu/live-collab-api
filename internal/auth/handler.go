@@ -11,15 +11,15 @@ import (
 
 // Register godoc
 // @Summary Register a new user
-// @Description Create a new user account
-// @Tags auth
+// @Description Create a new user account with email and password
+// @Tags authentication
 // @Accept json
 // @Produce json
-// @Param request body object{email=string,password=string} true "User registration data"
-// @Success 201 {object} object{message=string}
-// @Failure 400 {object} object{error=string}
-// @Failure 409 {object} object{error=string}
-// @Failure 500 {object} object{error=string}
+// @Param request body RegisterRequest true "User registration data"
+// @Success 201 {object} MessageResponse "User created successfully"
+// @Failure 400 {object} ErrorResponse "Invalid input data"
+// @Failure 409 {object} ErrorResponse "User already exists"
+// @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /register [post]
 func (s *AuthService) Register(c *gin.Context) {
 	var req struct {
@@ -53,15 +53,15 @@ func (s *AuthService) Register(c *gin.Context) {
 
 // Login godoc
 // @Summary Login user
-// @Description Authenticate user and return JWT token
-// @Tags auth
+// @Description Authenticate user and return JWT token for accessing protected endpoints
+// @Tags authentication
 // @Accept json
 // @Produce json
-// @Param request body object{email=string,password=string} true "User login credentials"
-// @Success 200 {object} object{token=string,user_id=int}
-// @Failure 400 {object} object{error=string}
-// @Failure 401 {object} object{error=string}
-// @Failure 500 {object} object{error=string}
+// @Param request body LoginRequest true "User login credentials"
+// @Success 200 {object} LoginResponse "Login successful with JWT token"
+// @Failure 400 {object} ErrorResponse "Invalid input data"
+// @Failure 401 {object} ErrorResponse "Invalid credentials"
+// @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /login [post]
 func (s *AuthService) Login(c *gin.Context) {
 	var req struct {
@@ -102,4 +102,29 @@ func (s *AuthService) Login(c *gin.Context) {
 		"user_id": id,
 	})
 
+}
+
+// Swagger models for auth endpoints
+
+type RegisterRequest struct {
+	Email    string `json:"email" binding:"required,email" example:"user@example.com"`
+	Password string `json:"password" binding:"required,min=6" example:"password123"`
+}
+
+type LoginRequest struct {
+	Email    string `json:"email" binding:"required,email" example:"user@example.com"`
+	Password string `json:"password" binding:"required" example:"password123"`
+}
+
+type LoginResponse struct {
+	Token  string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzY5OTc4NTYsInVzZXJfaWQiOjF9.Xg2Lv8K3oPHx9vXzF2dA1kT7mN8qR5wE"`
+	UserID int    `json:"user_id" example:"1"`
+}
+
+type MessageResponse struct {
+	Message string `json:"message" example:"User created successfully"`
+}
+
+type ErrorResponse struct {
+	Error string `json:"error" example:"Invalid input"`
 }

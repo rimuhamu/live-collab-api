@@ -27,26 +27,21 @@ type Event struct {
 	UpdatedAt  time.Time       `json:"updated_at"`
 }
 
-type CreateEventRequest struct {
-	EventType string          `json:"event_type" binding:"required"`
-	Payload   json.RawMessage `json:"payload" binding:"required"`
-}
-
 // CreateDocumentEvent godoc
 // @Summary Create document event
-// @Description Create a new event for collaborative editing
+// @Description Create a new event for collaborative editing (text operations, cursor movements, etc.). User can only create events for documents they own.
 // @Tags events
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "Document ID"
-// @Param request body object{event_type=string,payload=object} true "Event data"
-// @Success 201 {object} object{message=string,event_id=int}
-// @Failure 400 {object} object{error=string}
-// @Failure 401 {object} object{error=string}
-// @Failure 403 {object} object{error=string}
-// @Failure 404 {object} object{error=string}
-// @Failure 500 {object} object{error=string}
+// @Param request body CreateEventRequest true "Event data with type and payload"
+// @Success 201 {object} CreateEventResponse "Event created successfully"
+// @Failure 400 {object} ErrorResponse "Invalid input data or event type"
+// @Failure 401 {object} ErrorResponse "Unauthorized - invalid or missing token"
+// @Failure 403 {object} ErrorResponse "Access denied - you don't own this document"
+// @Failure 404 {object} ErrorResponse "Document not found"
+// @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /documents/{id}/events [post]
 func (h *EventHandler) CreateDocumentEvent(c *gin.Context) {
 	userId, err := h.AuthService.GetUserIDFromGinContext(c)
@@ -65,6 +60,12 @@ func (h *EventHandler) CreateDocumentEvent(c *gin.Context) {
 	var req CreateEventRequest
 	if err = c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var temp interface{}
+	if err := json.Unmarshal([]byte(req.Payload), &temp); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON in payload"})
 		return
 	}
 
@@ -111,19 +112,19 @@ func (h *EventHandler) CreateDocumentEvent(c *gin.Context) {
 
 // GetDocumentEvents godoc
 // @Summary Get document events
-// @Description Get all events for a specific document with pagination
+// @Description Get all events for a specific document with pagination. User can only access events for documents they own.
 // @Tags events
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "Document ID"
-// @Param limit query int false "Number of events to return (default 50, max 1000)"
-// @Param offset query int false "Number of events to skip (default 0)"
-// @Success 200 {object} object{events=[]object,limit=int,offset=int}
-// @Failure 400 {object} object{error=string}
-// @Failure 401 {object} object{error=string}
-// @Failure 403 {object} object{error=string}
-// @Failure 404 {object} object{error=string}
-// @Failure 500 {object} object{error=string}
+// @Param limit query int false "Number of events to return (default 50, max 1000)" default(50)
+// @Param offset query int false "Number of events to skip (default 0)" default(0)
+// @Success 200 {object} EventListResponse "List of events with pagination info"
+// @Failure 400 {object} ErrorResponse "Invalid document ID or parameters"
+// @Failure 401 {object} ErrorResponse "Unauthorized - invalid or missing token"
+// @Failure 403 {object} ErrorResponse "Access denied - you don't own this document"
+// @Failure 404 {object} ErrorResponse "Document not found"
+// @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /documents/{id}/events [get]
 func (h *EventHandler) GetDocumentEvents(c *gin.Context) {
 	userId, err := h.AuthService.GetUserIDFromGinContext(c)
@@ -194,4 +195,40 @@ func (h *EventHandler) GetDocumentEvents(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"events": events, "limit": limit, "offset": offset})
 
+}
+
+// swagger models for events
+
+type EventResponse struct {
+	ID         int       `json:"id" example:"1"`
+	DocumentID int       `json:"document_id" example:"1"`
+	UserID     int       `json:"user_id" example:"1"`
+	EventType  string    `json:"event_type" example:"text_insert"`
+	Payload    string    `json:"payload" example:"{\"position\":10,\"text\":\"Hello\"}"`
+	CreatedAt  time.Time `json:"created_at" example:"2024-01-15T10:30:00Z"`
+	UpdatedAt  time.Time `json:"updated_at" example:"2024-01-15T10:30:00Z"`
+}
+
+type EventListResponse struct {
+	Events []EventResponse `json:"events"`
+	Limit  int             `json:"limit" example:"50"`
+	Offset int             `json:"offset" example:"0"`
+	Total  int             `json:"total" example:"3"`
+}
+
+type CreateEventRequest struct {
+	EventType string `json:"event_type" binding:"required" example:"text_insert" enums:"text_insert,text_delete,text_replace,cursor_move,selection,document_save,document_open,user_join,user_leave"`
+	Payload   string `json:"payload" binding:"required" example:"{\"position\":10,\"text\":\"Hello World\",\"timestamp\":\"2024-01-15T10:30:00Z\"}"`
+}
+
+type CreateEventResponse struct {
+	Message    string `json:"message" example:"Event created successfully"`
+	EventID    int    `json:"event_id" example:"1"`
+	EventType  string `json:"event_type" example:"text_insert"`
+	DocumentID int    `json:"document_id" example:"1"`
+	UserID     int    `json:"user_id" example:"1"`
+}
+
+type ErrorResponse struct {
+	Error string `json:"error" example:"Error message"`
 }

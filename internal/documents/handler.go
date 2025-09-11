@@ -17,16 +17,16 @@ type DocumentHandler struct {
 
 // Create godoc
 // @Summary Create a new document
-// @Description Create a new document for the authenticated user
+// @Description Create a new document for the authenticated user. Requires valid JWT token.
 // @Tags documents
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param request body object{title=string,content=string,content_type=string} true "Document data"
-// @Success 201 {object} object{message=string,document_id=int,title=string,owner_id=int,content=string,content_type=string}
-// @Failure 400 {object} object{error=string}
-// @Failure 401 {object} object{error=string}
-// @Failure 500 {object} object{error=string}
+// @Param request body CreateDocumentRequest true "Document data"
+// @Success 201 {object} CreateDocumentResponse "Document created successfully"
+// @Failure 400 {object} ErrorResponse "Invalid input data"
+// @Failure 401 {object} ErrorResponse "Unauthorized - invalid or missing token"
+// @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /documents [post]
 func (h *DocumentHandler) Create(c *gin.Context) {
 	var req struct {
@@ -74,16 +74,16 @@ func (h *DocumentHandler) Create(c *gin.Context) {
 
 // GetByID godoc
 // @Summary Get document by ID
-// @Description Get a specific document by ID (must be owned by user)
+// @Description Get a specific document by ID. User can only access documents they own.
 // @Tags documents
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "Document ID"
-// @Success 200 {object} object{id=int,title=string,content=string,content_type=string,owner_id=int,created_at=string,updated_at=string}
-// @Failure 400 {object} object{error=string}
-// @Failure 401 {object} object{error=string}
-// @Failure 404 {object} object{error=string}
-// @Failure 500 {object} object{error=string}
+// @Success 200 {object} DocumentResponse "Document details"
+// @Failure 400 {object} ErrorResponse "Invalid document ID"
+// @Failure 401 {object} ErrorResponse "Unauthorized - invalid or missing token"
+// @Failure 404 {object} ErrorResponse "Document not found or access denied"
+// @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /documents/{id} [get]
 func (h *DocumentHandler) GetByID(c *gin.Context) {
 	documentId := c.Param("id")
@@ -121,13 +121,13 @@ func (h *DocumentHandler) GetByID(c *gin.Context) {
 
 // GetAll godoc
 // @Summary Get all user documents
-// @Description Get all documents owned by the authenticated user
+// @Description Get all documents owned by the authenticated user, ordered by creation date (newest first)
 // @Tags documents
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} object{documents=[]object}
-// @Failure 401 {object} object{error=string}
-// @Failure 500 {object} object{error=string}
+// @Success 200 {object} DocumentListResponse "List of user documents"
+// @Failure 401 {object} ErrorResponse "Unauthorized - invalid or missing token"
+// @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /documents [get]
 func (h *DocumentHandler) GetAll(c *gin.Context) {
 	userId, err := h.AuthService.GetUserIDFromGinContext(c)
@@ -185,18 +185,18 @@ func (h *DocumentHandler) GetAll(c *gin.Context) {
 
 // Update godoc
 // @Summary Update document
-// @Description Update a document (must be owned by user)
+// @Description Update a document (title, content, or content type). User can only update documents they own.
 // @Tags documents
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "Document ID"
-// @Param request body object{title=string,content=string,content_type=string} true "Document update data"
-// @Success 200 {object} object{message=string}
-// @Failure 400 {object} object{error=string}
-// @Failure 401 {object} object{error=string}
-// @Failure 404 {object} object{error=string}
-// @Failure 500 {object} object{error=string}
+// @Param request body UpdateDocumentRequest true "Document update data"
+// @Success 200 {object} MessageResponse "Document updated successfully"
+// @Failure 400 {object} ErrorResponse "Invalid input data"
+// @Failure 401 {object} ErrorResponse "Unauthorized - invalid or missing token"
+// @Failure 404 {object} ErrorResponse "Document not found or access denied"
+// @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /documents/{id} [patch]
 func (h *DocumentHandler) Update(c *gin.Context) {
 	documentId := c.Param("id")
@@ -236,15 +236,15 @@ func (h *DocumentHandler) Update(c *gin.Context) {
 
 // Delete godoc
 // @Summary Delete document
-// @Description Delete a document (must be owned by user)
+// @Description Delete a document. User can only delete documents they own. This action cannot be undone.
 // @Tags documents
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "Document ID"
-// @Success 200 {object} object{message=string}
-// @Failure 401 {object} object{error=string}
-// @Failure 404 {object} object{error=string}
-// @Failure 500 {object} object{error=string}
+// @Success 200 {object} MessageResponse "Document deleted successfully"
+// @Failure 401 {object} ErrorResponse "Unauthorized - invalid or missing token"
+// @Failure 404 {object} ErrorResponse "Document not found or access denied"
+// @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /documents/{id} [delete]
 func (h *DocumentHandler) Delete(c *gin.Context) {
 	documentId := c.Param("id")
@@ -269,4 +269,49 @@ func (h *DocumentHandler) Delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Document deleted successfully"})
+}
+
+// swagger models for documents
+
+type CreateDocumentRequest struct {
+	Title       string `json:"title" binding:"required" example:"My Document"`
+	Content     string `json:"content" example:"Document content here"`
+	ContentType string `json:"content_type" example:"text/plain"`
+}
+
+type UpdateDocumentRequest struct {
+	Title       string `json:"title" binding:"required" example:"Updated Document"`
+	Content     string `json:"content" example:"Updated content"`
+	ContentType string `json:"content_type" example:"text/plain"`
+}
+
+type DocumentResponse struct {
+	ID          int    `json:"id" example:"1"`
+	Title       string `json:"title" example:"My Document"`
+	Content     string `json:"content" example:"Document content"`
+	ContentType string `json:"content_type" example:"text/plain"`
+	OwnerID     int    `json:"owner_id" example:"1"`
+	CreatedAt   string `json:"created_at" example:"2024-01-15T10:30:00Z"`
+	UpdatedAt   string `json:"updated_at" example:"2024-01-15T10:30:00Z"`
+}
+
+type CreateDocumentResponse struct {
+	Message     string `json:"message" example:"Document created successfully"`
+	DocumentID  int    `json:"document_id" example:"1"`
+	Title       string `json:"title" example:"My Document"`
+	OwnerID     int    `json:"owner_id" example:"1"`
+	Content     string `json:"content" example:"Document content"`
+	ContentType string `json:"content_type" example:"text/plain"`
+}
+
+type DocumentListResponse struct {
+	Documents []DocumentResponse `json:"documents"`
+}
+
+type MessageResponse struct {
+	Message string `json:"message" example:"Operation successful"`
+}
+
+type ErrorResponse struct {
+	Error string `json:"error" example:"Error message"`
 }
