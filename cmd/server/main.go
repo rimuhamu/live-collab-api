@@ -5,6 +5,7 @@ import (
 	"live-collab-api/internal/config"
 	"live-collab-api/internal/db"
 	"live-collab-api/internal/documents"
+	"live-collab-api/internal/events"
 	"log"
 	"net/http"
 
@@ -26,6 +27,11 @@ func main() {
 		AuthService: authService,
 	}
 
+	eventHandler := &events.EventHandler{
+		DB:          database,
+		AuthService: authService,
+	}
+
 	router := gin.Default()
 
 	router.POST("/register", authService.Register)
@@ -36,6 +42,9 @@ func main() {
 	router.GET("/documents/:id", documentsHandler.GetByID)
 	router.PATCH("/documents/:id", documentsHandler.Update)
 	router.DELETE("/documents/:id", documentsHandler.Delete)
+
+	router.GET("/documents/:id/events", eventHandler.GetDocumentEvent)
+	router.POST("/documents/:id/events", eventHandler.CreateDocumentEvent)
 
 	log.Println("Server running on :8080")
 	if err := http.ListenAndServe(":8080", router); err != nil {
