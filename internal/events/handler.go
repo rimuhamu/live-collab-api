@@ -32,6 +32,22 @@ type CreateEventRequest struct {
 	Payload   json.RawMessage `json:"payload" binding:"required"`
 }
 
+// CreateDocumentEvent godoc
+// @Summary Create document event
+// @Description Create a new event for collaborative editing
+// @Tags events
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Document ID"
+// @Param request body object{event_type=string,payload=object} true "Event data"
+// @Success 201 {object} object{message=string,event_id=int}
+// @Failure 400 {object} object{error=string}
+// @Failure 401 {object} object{error=string}
+// @Failure 403 {object} object{error=string}
+// @Failure 404 {object} object{error=string}
+// @Failure 500 {object} object{error=string}
+// @Router /documents/{id}/events [post]
 func (h *EventHandler) CreateDocumentEvent(c *gin.Context) {
 	userId, err := h.AuthService.GetUserIDFromGinContext(c)
 	if err != nil {
@@ -93,7 +109,23 @@ func (h *EventHandler) CreateDocumentEvent(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Event created", "event_id": eventId})
 }
 
-func (h *EventHandler) GetDocumentEvent(c *gin.Context) {
+// GetDocumentEvents godoc
+// @Summary Get document events
+// @Description Get all events for a specific document with pagination
+// @Tags events
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Document ID"
+// @Param limit query int false "Number of events to return (default 50, max 1000)"
+// @Param offset query int false "Number of events to skip (default 0)"
+// @Success 200 {object} object{events=[]object,limit=int,offset=int}
+// @Failure 400 {object} object{error=string}
+// @Failure 401 {object} object{error=string}
+// @Failure 403 {object} object{error=string}
+// @Failure 404 {object} object{error=string}
+// @Failure 500 {object} object{error=string}
+// @Router /documents/{id}/events [get]
+func (h *EventHandler) GetDocumentEvents(c *gin.Context) {
 	userId, err := h.AuthService.GetUserIDFromGinContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unauthorized"})

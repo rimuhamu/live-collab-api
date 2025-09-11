@@ -15,6 +15,19 @@ type DocumentHandler struct {
 	AuthService *auth.AuthService
 }
 
+// Create godoc
+// @Summary Create a new document
+// @Description Create a new document for the authenticated user
+// @Tags documents
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body object{title=string,content=string,content_type=string} true "Document data"
+// @Success 201 {object} object{message=string,document_id=int,title=string,owner_id=int,content=string,content_type=string}
+// @Failure 400 {object} object{error=string}
+// @Failure 401 {object} object{error=string}
+// @Failure 500 {object} object{error=string}
+// @Router /documents [post]
 func (h *DocumentHandler) Create(c *gin.Context) {
 	var req struct {
 		ID          int    `json:"id"`
@@ -59,6 +72,19 @@ func (h *DocumentHandler) Create(c *gin.Context) {
 	})
 }
 
+// GetByID godoc
+// @Summary Get document by ID
+// @Description Get a specific document by ID (must be owned by user)
+// @Tags documents
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Document ID"
+// @Success 200 {object} object{id=int,title=string,content=string,content_type=string,owner_id=int,created_at=string,updated_at=string}
+// @Failure 400 {object} object{error=string}
+// @Failure 401 {object} object{error=string}
+// @Failure 404 {object} object{error=string}
+// @Failure 500 {object} object{error=string}
+// @Router /documents/{id} [get]
 func (h *DocumentHandler) GetByID(c *gin.Context) {
 	documentId := c.Param("id")
 
@@ -93,6 +119,16 @@ func (h *DocumentHandler) GetByID(c *gin.Context) {
 	c.JSON(http.StatusOK, doc)
 }
 
+// GetAll godoc
+// @Summary Get all user documents
+// @Description Get all documents owned by the authenticated user
+// @Tags documents
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} object{documents=[]object}
+// @Failure 401 {object} object{error=string}
+// @Failure 500 {object} object{error=string}
+// @Router /documents [get]
 func (h *DocumentHandler) GetAll(c *gin.Context) {
 	userId, err := h.AuthService.GetUserIDFromGinContext(c)
 	if err != nil {
@@ -147,6 +183,21 @@ func (h *DocumentHandler) GetAll(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"documents": documents})
 }
 
+// Update godoc
+// @Summary Update document
+// @Description Update a document (must be owned by user)
+// @Tags documents
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Document ID"
+// @Param request body object{title=string,content=string,content_type=string} true "Document update data"
+// @Success 200 {object} object{message=string}
+// @Failure 400 {object} object{error=string}
+// @Failure 401 {object} object{error=string}
+// @Failure 404 {object} object{error=string}
+// @Failure 500 {object} object{error=string}
+// @Router /documents/{id} [patch]
 func (h *DocumentHandler) Update(c *gin.Context) {
 	documentId := c.Param("id")
 	var req struct {
@@ -183,6 +234,18 @@ func (h *DocumentHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Document updated successfully"})
 }
 
+// Delete godoc
+// @Summary Delete document
+// @Description Delete a document (must be owned by user)
+// @Tags documents
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Document ID"
+// @Success 200 {object} object{message=string}
+// @Failure 401 {object} object{error=string}
+// @Failure 404 {object} object{error=string}
+// @Failure 500 {object} object{error=string}
+// @Router /documents/{id} [delete]
 func (h *DocumentHandler) Delete(c *gin.Context) {
 	documentId := c.Param("id")
 

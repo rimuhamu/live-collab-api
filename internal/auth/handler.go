@@ -9,6 +9,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Register godoc
+// @Summary Register a new user
+// @Description Create a new user account
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body object{email=string,password=string} true "User registration data"
+// @Success 201 {object} object{message=string}
+// @Failure 400 {object} object{error=string}
+// @Failure 409 {object} object{error=string}
+// @Failure 500 {object} object{error=string}
+// @Router /register [post]
 func (s *AuthService) Register(c *gin.Context) {
 	var req struct {
 		Email    string `json:"email"`
@@ -39,6 +51,18 @@ func (s *AuthService) Register(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "User created successfully"})
 }
 
+// Login godoc
+// @Summary Login user
+// @Description Authenticate user and return JWT token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body object{email=string,password=string} true "User login credentials"
+// @Success 200 {object} object{token=string,user_id=int}
+// @Failure 400 {object} object{error=string}
+// @Failure 401 {object} object{error=string}
+// @Failure 500 {object} object{error=string}
+// @Router /login [post]
 func (s *AuthService) Login(c *gin.Context) {
 	var req struct {
 		Email    string `json:"email"`
