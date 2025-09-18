@@ -29,13 +29,13 @@ type Event struct {
 	CreatedAt  string                 `json:"created_at"`
 }
 
-func (ds *DocumentService) CreateDocument(title string, content string, contentType string, ownerId int) (*Document, error) {
+func (ds *DocumentService) CreateDocument(title string, ownerId int) (*Document, error) {
 	var doc Document
 	err := ds.DB.QueryRow(`
-		INSERT INTO documents (title, content, content_type, owner_id, created_at)
-		VALUES ($1, $2, $3, $4, now())
+		INSERT INTO documents (title, owner_id, created_at)
+		VALUES ($1, $2, now())
 		RETURNING id, title, content, content_type, owner_id, created_at
-`, title, content, contentType, ownerId).Scan(&doc.ID, &doc.Title, &doc.Content, &doc.ContentType, &doc.OwnerId, &doc.CreatedAt)
+`, title, ownerId).Scan(&doc.ID, &doc.Title, &doc.Content, &doc.ContentType, &doc.OwnerId, &doc.CreatedAt)
 
 	if err != nil {
 		return nil, fmt.Errorf("error creating document: %v", err)
