@@ -1,21 +1,19 @@
 package documents
 
 import (
-	"database/sql"
-	"errors"
-	"fmt"
 	"live-collab-api/internal/auth"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
 type DocumentHandler struct {
-	DB          *sql.DB
-	AuthService *auth.AuthService
+	DocumentService *DocumentService
+	AuthService     *auth.AuthService
 }
 
-// Create godoc
+// CreateDocument godoc
 // @Summary Create a new document
 // @Description Create a new document for the authenticated user. Requires valid JWT token.
 // @Tags documents
@@ -28,13 +26,15 @@ type DocumentHandler struct {
 // @Failure 401 {object} ErrorResponse "Unauthorized - invalid or missing token"
 // @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /documents [post]
-func (h *DocumentHandler) Create(c *gin.Context) {
+func (dh *DocumentHandler) CreateDocument(c *gin.Context) {
+	userID, err := dh.AuthService.GetUserIDFromGinContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
+
 	var req struct {
-		ID          int    `json:"id"`
-		Title       string `json:"title"`
-		Content     string `json:"content"`
-		ContentType string `json:"content_type"`
-		OwnerID     int    `json:"owner_id"`
+		Title string `json:"title" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -42,39 +42,18 @@ func (h *DocumentHandler) Create(c *gin.Context) {
 		return
 	}
 
-	userId, err := h.AuthService.GetUserIDFromGinContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error":  "Unauthorized",
-			"detail": err.Error(),
-		})
-		return
-	}
-
-	var documentId int
-	err = h.DB.QueryRow(
-		"INSERT INTO documents (title, content, content_type, owner_id) VALUES ($1, $2, $3, $4) RETURNING id",
-		req.Title, req.Content, req.ContentType, userId,
-	).Scan(&documentId)
-
+	document, err := dh.DocumentService.CreateDocument(req.Title, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create document"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message":      "Document created successfully",
-		"document_id":  documentId,
-		"title":        req.Title,
-		"owner_id":     userId,
-		"content":      req.Content,
-		"content_type": req.ContentType,
-	})
+	c.JSON(http.StatusCreated, document)
 }
 
-// GetByID godoc
-// @Summary Get document by ID
-// @Description Get a specific document by ID. User can only access documents they own.
+// GetDocument godoc
+// @Summary Get document
+// @Description Get a specific document. User can only access documents they own.
 // @Tags documents
 // @Produce json
 // @Security BearerAuth
@@ -85,99 +64,50 @@ func (h *DocumentHandler) Create(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse "Document not found or access denied"
 // @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /documents/{id} [get]
-func (h *DocumentHandler) GetByID(c *gin.Context) {
-	documentId := c.Param("id")
-
-	userId, err := h.AuthService.GetUserIDFromGinContext(c)
+func (dh *DocumentHandler) GetDocument(c *gin.Context) {
+	userId, err := dh.AuthService.GetUserIDFromGinContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
 	}
 
-	var doc struct {
-		ID          int    `json:"id"`
-		Title       string `json:"title"`
-		Content     string `json:"content"`
-		ContentType string `json:"content_type"`
-		OwnerID     int    `json:"owner_id"`
-		CreatedAt   string `json:"created_at"`
-		UpdatedAt   string `json:"updated_at"`
-	}
-
-	err = h.DB.QueryRow("SELECT id, title, content, content_type, owner_id, created_at, updated_at FROM documents WHERE id = $1 AND owner_id = $2",
-		documentId, userId,
-	).Scan(&doc.ID, &doc.Title, &doc.Content, &doc.ContentType, &doc.OwnerID, &doc.CreatedAt, &doc.UpdatedAt)
-
+	documentIdStr := c.Param("id")
+	documentId, err := strconv.Atoi(documentIdStr)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
-		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid document ID"})
 		return
 	}
-	c.JSON(http.StatusOK, doc)
+
+	hasAccess, err := dh.DocumentService.HasDocumentAccess(userId, documentId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check access to document"})
+		return
+	}
+	if !hasAccess {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Access forbidden"})
+		return
+	}
+
+	document, err := dh.DocumentService.GetDocument(documentId)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, document)
 }
 
-// GetAll godoc
-// @Summary Get all user documents
-// @Description Get all documents owned by the authenticated user, ordered by creation date (newest first)
-// @Tags documents
-// @Produce json
-// @Security BearerAuth
-// @Success 200 {object} DocumentListResponse "List of user documents"
-// @Failure 401 {object} ErrorResponse "Unauthorized - invalid or missing token"
-// @Failure 500 {object} ErrorResponse "Internal server error"
-// @Router /documents [get]
-func (h *DocumentHandler) GetAll(c *gin.Context) {
-	userId, err := h.AuthService.GetUserIDFromGinContext(c)
+func (dh *DocumentHandler) GetUserDocuments(c *gin.Context) {
+	userId, err := dh.AuthService.GetUserIDFromGinContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
 	}
 
-	fmt.Printf("DEBUG: Looking for documents for user ID: %d\n", userId)
-
-	rows, err := h.DB.Query("Select id, title, content, content_type, owner_id, created_at, updated_at FROM documents WHERE owner_id = $1", userId)
+	documents, err := dh.DocumentService.GetUserDocuments(userId)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get documents"})
 		return
-	}
-	defer rows.Close()
-
-	var documents []map[string]interface{}
-	rowCount := 0
-	for rows.Next() {
-		rowCount++
-		var doc struct {
-			ID          int    `json:"id"`
-			Title       string `json:"title"`
-			Content     string `json:"content"`
-			ContentType string `json:"content_type"`
-			OwnerID     int    `json:"owner_id"`
-			CreatedAt   string `json:"created_at"`
-			UpdatedAt   string `json:"updated_at"`
-		}
-
-		if err := rows.Scan(&doc.ID, &doc.Title, &doc.Content, &doc.ContentType, &doc.OwnerID, &doc.CreatedAt, &doc.UpdatedAt); err != nil {
-			fmt.Printf("DEBUG: Scan error: %v\n", err)
-			continue
-		}
-
-		documents = append(documents, map[string]interface{}{
-			"id":           doc.ID,
-			"title":        doc.Title,
-			"content":      doc.Content,
-			"content_type": doc.ContentType,
-			"owner_id":     doc.OwnerID,
-			"created_at":   doc.CreatedAt,
-			"updated_at":   doc.UpdatedAt,
-		})
-	}
-
-	fmt.Printf("DEBUG: Total rows processed: %d\n", rowCount)
-	if documents == nil {
-		documents = []map[string]interface{}{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"documents": documents})
@@ -198,12 +128,32 @@ func (h *DocumentHandler) GetAll(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse "Document not found or access denied"
 // @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /documents/{id} [patch]
-func (h *DocumentHandler) Update(c *gin.Context) {
-	documentId := c.Param("id")
+func (dh *DocumentHandler) UpdateDocument(c *gin.Context) {
+	userId, err := dh.AuthService.GetUserIDFromGinContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
+
+	documentIdStr := c.Param("id")
+	documentId, err := strconv.Atoi(documentIdStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid document ID"})
+		return
+	}
+
+	hasAccess, err := dh.DocumentService.HasDocumentAccess(userId, documentId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check access to document"})
+		return
+	}
+	if !hasAccess {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Access forbidden"})
+		return
+	}
+
 	var req struct {
-		Title       string `json:"title"`
-		Content     string `json:"content"`
-		ContentType string `json:"content_type"`
+		Title string `json:"title" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -211,23 +161,8 @@ func (h *DocumentHandler) Update(c *gin.Context) {
 		return
 	}
 
-	userId, err := h.AuthService.GetUserIDFromGinContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-
-	result, err := h.DB.Exec("UPDATE documents SET title = $1, content = $2, content_type = $3 WHERE id = $4 AND owner_id = $5",
-		req.Title, req.Content, req.ContentType, documentId, userId)
-
-	if err != nil {
+	if err := dh.DocumentService.UpdateDocumentTitle(documentId, req.Title); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update document"})
-		return
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if rowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Document not found or not authorized"})
 		return
 	}
 
@@ -246,29 +181,75 @@ func (h *DocumentHandler) Update(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse "Document not found or access denied"
 // @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /documents/{id} [delete]
-func (h *DocumentHandler) Delete(c *gin.Context) {
-	documentId := c.Param("id")
-
-	userId, err := h.AuthService.GetUserIDFromGinContext(c)
+func (dh *DocumentHandler) Delete(c *gin.Context) {
+	userId, err := dh.AuthService.GetUserIDFromGinContext(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
 	}
 
-	result, err := h.DB.Exec("DELETE FROM documents WHERE id = $1 AND owner_id = $2", documentId, userId)
-
+	documentIdStr := c.Param("id")
+	documentId, err := strconv.Atoi(documentIdStr)
 	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid document ID"})
+		return
+	}
+
+	hasAccess, err := dh.DocumentService.HasDocumentAccess(userId, documentId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check access to document"})
+		return
+	}
+	if !hasAccess {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Access forbidden"})
+		return
+	}
+
+	if err := dh.DocumentService.DeleteDocument(documentId); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete document"})
 		return
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if rowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
+	c.JSON(http.StatusOK, gin.H{"message": "Document deleted successfully"})
+}
+
+func (dh *DocumentHandler) GetDocumentEvents(c *gin.Context) {
+	userId, err := dh.AuthService.GetUserIDFromGinContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Document deleted successfully"})
+	documentIdStr := c.Param("id")
+	documentId, err := strconv.Atoi(documentIdStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid document ID"})
+		return
+	}
+
+	hasAccess, err := dh.DocumentService.HasDocumentAccess(userId, documentId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check access to document"})
+		return
+	}
+	if !hasAccess {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Access forbidden"})
+		return
+	}
+
+	limitStr := c.DefaultQuery("limit", "100")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = 100
+	}
+
+	events, err := dh.DocumentService.GetDocumentEvents(documentId, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get document events"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"events": events})
 }
 
 // swagger models for documents
