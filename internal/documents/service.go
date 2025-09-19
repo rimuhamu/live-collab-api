@@ -56,7 +56,7 @@ func (ds *DocumentService) GetDocument(documentId int) (*Document, error) {
 	return &doc, nil
 }
 
-func (ds *DocumentService) GetUserDocuments(userId string) ([]Document, error) {
+func (ds *DocumentService) GetUserDocuments(userId int) ([]Document, error) {
 	rows, err := ds.DB.Query(`
 		SELECT id, title, content, content_type, owner_id, created_at
 		FROM documents WHERE owner_id = $1 ORDER BY created_at DESC`, userId)
