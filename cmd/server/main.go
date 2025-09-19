@@ -5,7 +5,7 @@ import (
 	"live-collab-api/internal/config"
 	"live-collab-api/internal/db"
 	"live-collab-api/internal/documents"
-	"live-collab-api/internal/events"
+	"live-collab-api/internal/websocket"
 	"log"
 	"net/http"
 
@@ -45,12 +45,20 @@ func main() {
 		JWTSecret: jwtSecret,
 	}
 
-	documentsHandler := &documents.DocumentHandler{
-		DB:          database,
-		AuthService: authService,
+	documentService := &documents.DocumentService{
+		DB: database,
 	}
 
-	eventHandler := &events.EventHandler{
+	documentsHandler := &documents.DocumentHandler{
+		DocumentService: documentService,
+		AuthService:     authService,
+	}
+
+	hub := websocket.NewHub()
+	go hub.Run()
+
+	wsService := &websocket.WebSocketHandler{
+		Hub:         hub,
 		DB:          database,
 		AuthService: authService,
 	}
@@ -73,20 +81,25 @@ func main() {
 	router.POST("/register", authService.Register)
 	router.POST("/login", authService.Login)
 
-	protected := router.Group("/")
+	protected := router.Group("/api")
 	protected.Use(authService.AuthMiddleware())
 	{
 		protected.GET("/me", authService.Me)
 
-		router.POST("/documents", documentsHandler.Create)
-		router.GET("/documents", documentsHandler.GetAll)
-		router.GET("/documents/:id", documentsHandler.GetByID)
-		router.PATCH("/documents/:id", documentsHandler.Update)
-		router.DELETE("/documents/:id", documentsHandler.Delete)
+		protected.POST("/documents", documentsHandler.CreateDocument)
+		protected.GET("/documents/:id", documentsHandler.GetUserDocuments)
 
-		router.GET("/documents/:id/events", eventHandler.GetDocumentEvents)
-		router.POST("/documents/:id/events", eventHandler.CreateDocumentEvent)
+		docAccess := protected.Group("")
+		docAccess.Use(documents.DocumentAccessMiddleware(authService, documentService))
+		{
+			protected.GET("/documents", documentsHandler.GetDocument)
+			protected.PATCH("/documents/:id", documentsHandler.UpdateDocument)
+			protected.DELETE("/documents/:id", documentsHandler.DeleteDocument)
+		}
+
 	}
+
+	router.GET("/ws/:document_id", wsService.HandleWebSocket)
 
 	log.Println("Server running on :8080")
 	if err := http.ListenAndServe(":8080", router); err != nil {

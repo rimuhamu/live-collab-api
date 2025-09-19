@@ -66,28 +66,7 @@ func (dh *DocumentHandler) CreateDocument(c *gin.Context) {
 // @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /api/documents/{id} [get]
 func (dh *DocumentHandler) GetDocument(c *gin.Context) {
-	userId, err := dh.AuthService.GetUserIDFromGinContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
-		return
-	}
-
-	documentIdStr := c.Param("id")
-	documentId, err := strconv.Atoi(documentIdStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid document ID"})
-		return
-	}
-
-	hasAccess, err := dh.DocumentService.HasDocumentAccess(userId, documentId)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check access to document"})
-		return
-	}
-	if !hasAccess {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Access forbidden"})
-		return
-	}
+	documentId, _ := GetDocumentID(c)
 
 	document, err := dh.DocumentService.GetDocument(documentId)
 	if err != nil {
@@ -141,29 +120,7 @@ func (dh *DocumentHandler) GetUserDocuments(c *gin.Context) {
 // @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /api/documents/{id} [put]
 func (dh *DocumentHandler) UpdateDocument(c *gin.Context) {
-	userId, err := dh.AuthService.GetUserIDFromGinContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
-		return
-	}
-
-	documentIdStr := c.Param("id")
-	documentId, err := strconv.Atoi(documentIdStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid document ID"})
-		return
-	}
-
-	hasAccess, err := dh.DocumentService.HasDocumentAccess(userId, documentId)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check access to document"})
-		return
-	}
-	if !hasAccess {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Access forbidden"})
-		return
-	}
-
+	documentId, _ := GetDocumentID(c)
 	var req struct {
 		Title string `json:"title" binding:"required"`
 	}
@@ -196,28 +153,7 @@ func (dh *DocumentHandler) UpdateDocument(c *gin.Context) {
 // @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /api/documents/{id} [delete]
 func (dh *DocumentHandler) DeleteDocument(c *gin.Context) {
-	userId, err := dh.AuthService.GetUserIDFromGinContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
-		return
-	}
-
-	documentIdStr := c.Param("id")
-	documentId, err := strconv.Atoi(documentIdStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid document ID"})
-		return
-	}
-
-	hasAccess, err := dh.DocumentService.HasDocumentAccess(userId, documentId)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check access to document"})
-		return
-	}
-	if !hasAccess {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Access forbidden"})
-		return
-	}
+	documentId, _ := GetDocumentID(c)
 
 	if err := dh.DocumentService.DeleteDocument(documentId); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete document"})
@@ -243,28 +179,7 @@ func (dh *DocumentHandler) DeleteDocument(c *gin.Context) {
 // @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /api/documents/{id}/events [get]
 func (dh *DocumentHandler) GetDocumentEvents(c *gin.Context) {
-	userId, err := dh.AuthService.GetUserIDFromGinContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
-		return
-	}
-
-	documentIdStr := c.Param("id")
-	documentId, err := strconv.Atoi(documentIdStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid document ID"})
-		return
-	}
-
-	hasAccess, err := dh.DocumentService.HasDocumentAccess(userId, documentId)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check access to document"})
-		return
-	}
-	if !hasAccess {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Access forbidden"})
-		return
-	}
+	documentId, _ := GetDocumentID(c)
 
 	limitStr := c.DefaultQuery("limit", "100")
 	limit, err := strconv.Atoi(limitStr)
