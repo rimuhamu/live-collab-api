@@ -76,8 +76,8 @@ func (ds *DocumentService) GetUserDocuments(userId int) ([]Document, error) {
 	return documents, nil
 }
 
-func (ds *DocumentService) UpdateDocument(documentId int, title string, content string) error {
-	result, err := ds.DB.Exec("UPDATE documents SET title = $1, content = $2 WHERE id = $3", title, content, documentId)
+func (ds *DocumentService) UpdateDocumentTitle(documentId int, title string) error {
+	result, err := ds.DB.Exec("UPDATE documents SET title = $1 WHERE id = $2", title, documentId)
 	if err != nil {
 		return fmt.Errorf("error updating document: %v", err)
 	}
