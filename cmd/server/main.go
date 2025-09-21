@@ -5,6 +5,7 @@ import (
 	"live-collab-api/internal/config"
 	"live-collab-api/internal/db"
 	"live-collab-api/internal/documents"
+	"live-collab-api/internal/events"
 	"live-collab-api/internal/websocket"
 	"log"
 	"net/http"
@@ -54,6 +55,11 @@ func main() {
 		AuthService:     authService,
 	}
 
+	eventsHandler := &events.EventHandler{
+		DB:          database,
+		AuthService: authService,
+	}
+
 	hub := websocket.NewHub()
 	go hub.Run()
 
@@ -88,6 +94,10 @@ func main() {
 
 		protected.POST("/documents", documentsHandler.CreateDocument)
 		protected.GET("/documents/:id", documentsHandler.GetUserDocuments)
+		protected.GET("/documents/:id", documentsHandler.GetDocumentEvents)
+
+		protected.POST("/documents/:id/events", eventsHandler.CreateDocumentEvent)
+		protected.GET("/documents/:id/events", eventsHandler.GetDocumentEvents)
 
 		docAccess := protected.Group("")
 		docAccess.Use(documents.DocumentAccessMiddleware(authService, documentService))
