@@ -8,7 +8,9 @@ import (
 	"live-collab-api/internal/auth"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,10 +18,20 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+var allowedOrigins = strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		// TODO: proper origin checking
-		return true
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true
+		}
+
+		for _, allowedOrigin := range allowedOrigins {
+			if allowedOrigin == strings.TrimSpace(allowedOrigin) {
+				return true
+			}
+		}
+		return false
 	},
 }
 
