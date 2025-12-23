@@ -9,8 +9,8 @@ import (
 )
 
 type DocumentHandler struct {
-	DocumentService *DocumentService
-	AuthService     *auth.AuthService
+	DocumentService Service
+	AuthService     auth.Service
 }
 
 // CreateDocument godoc
