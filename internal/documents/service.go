@@ -12,11 +12,11 @@ type DocumentService struct {
 }
 
 type Document struct {
-	ID          string `json:"id"`
+	ID          int    `json:"id"`
 	Title       string `json:"title"`
 	Content     string `json:"content"`
 	ContentType string `json:"content_type"`
-	OwnerId     string `json:"owner_id"`
+	OwnerId     int    `json:"owner_id"`
 	CreatedAt   string `json:"created_at"`
 }
 

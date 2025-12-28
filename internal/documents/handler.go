@@ -33,9 +33,7 @@ func (dh *DocumentHandler) CreateDocument(c *gin.Context) {
 		return
 	}
 
-	var req struct {
-		Title string `json:"title" binding:"required"`
-	}
+	var req CreateDocumentRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -121,9 +119,7 @@ func (dh *DocumentHandler) GetUserDocuments(c *gin.Context) {
 // @Router /api/documents/{id} [put]
 func (dh *DocumentHandler) UpdateDocument(c *gin.Context) {
 	documentId, _ := GetDocumentID(c)
-	var req struct {
-		Title string `json:"title" binding:"required"`
-	}
+	var req UpdateDocumentRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
