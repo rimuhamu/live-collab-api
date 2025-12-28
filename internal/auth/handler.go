@@ -9,6 +9,34 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type RegisterRequest struct {
+	Email    string `json:"email" binding:"required,email" example:"user@example.com"`
+	Password string `json:"password" binding:"required,min=6" example:"password123"`
+}
+
+type LoginRequest struct {
+	Email    string `json:"email" binding:"required,email" example:"user@example.com"`
+	Password string `json:"password" binding:"required" example:"password123"`
+}
+type LoginResponse struct {
+	Token  string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzY5OTc4NTYsInVzZXJfaWQiOjF9.Xg2Lv8K3oPHx9vXzF2dA1kT7mN8qR5wE"`
+	UserID int    `json:"user_id" example:"1"`
+}
+
+type UserProfileResponse struct {
+	UserID    int    `json:"user_id" example:"1"`
+	Email     string `json:"email" example:"user@example.com"`
+	CreatedAt string `json:"created_at" example:"2024-01-15T10:30:00Z"`
+}
+
+type MessageResponse struct {
+	Message string `json:"message" example:"User created successfully"`
+}
+
+type ErrorResponse struct {
+	Error string `json:"error" example:"Invalid input"`
+}
+
 // Register godoc
 // @Summary Register a new user
 // @Description Create a new user account with email and password
@@ -129,35 +157,4 @@ func (s *AuthService) Me(c *gin.Context) {
 		Email:     email,
 		CreatedAt: createdAt,
 	})
-}
-
-// Swagger models for auth endpoints
-
-type RegisterRequest struct {
-	Email    string `json:"email" binding:"required,email" example:"user@example.com"`
-	Password string `json:"password" binding:"required,min=6" example:"password123"`
-}
-
-type LoginRequest struct {
-	Email    string `json:"email" binding:"required,email" example:"user@example.com"`
-	Password string `json:"password" binding:"required" example:"password123"`
-}
-
-type LoginResponse struct {
-	Token  string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzY5OTc4NTYsInVzZXJfaWQiOjF9.Xg2Lv8K3oPHx9vXzF2dA1kT7mN8qR5wE"`
-	UserID int    `json:"user_id" example:"1"`
-}
-
-type UserProfileResponse struct {
-	UserID    int    `json:"user_id" example:"1"`
-	Email     string `json:"email" example:"user@example.com"`
-	CreatedAt string `json:"created_at" example:"2024-01-15T10:30:00Z"`
-}
-
-type MessageResponse struct {
-	Message string `json:"message" example:"User created successfully"`
-}
-
-type ErrorResponse struct {
-	Error string `json:"error" example:"Invalid input"`
 }
