@@ -22,10 +22,7 @@ import (
 // @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /register [post]
 func (s *AuthService) Register(c *gin.Context) {
-	var req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+	var req RegisterRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -64,10 +61,7 @@ func (s *AuthService) Register(c *gin.Context) {
 // @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /login [post]
 func (s *AuthService) Login(c *gin.Context) {
-	var req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+	var req LoginRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
