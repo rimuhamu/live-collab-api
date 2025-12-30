@@ -112,20 +112,22 @@ func main() {
 		protected.GET("/me", authService.Me)
 
 		protected.POST("/documents", documentsHandler.CreateDocument)
-		protected.GET("/documents/:id", documentsHandler.GetUserDocuments)
-		protected.GET("/documents/:id", documentsHandler.GetDocumentEvents)
-
-		protected.POST("/documents/:id/events", eventsHandler.CreateDocumentEvent)
-		protected.GET("/documents/:id/events", eventsHandler.GetDocumentEvents)
+		protected.GET("/documents", documentsHandler.GetUserDocuments)
 
 		docAccess := protected.Group("")
 		docAccess.Use(documents.DocumentAccessMiddleware(authService, documentService))
 		{
-			protected.GET("/documents", documentsHandler.GetDocument)
-			protected.PATCH("/documents/:id", documentsHandler.UpdateDocument)
-			protected.DELETE("/documents/:id", documentsHandler.DeleteDocument)
-		}
+			docAccess.GET("/documents/:id", documentsHandler.GetDocument)
+			docAccess.PATCH("/documents/:id", documentsHandler.UpdateDocument)
+			docAccess.DELETE("/documents/:id", documentsHandler.DeleteDocument)
 
+			docAccess.POST("/documents/:id/events", eventsHandler.CreateDocumentEvent)
+			docAccess.GET("/documents/:id/events", eventsHandler.GetDocumentEvents)
+
+			docAccess.GET("/documents/:id/collaborators", documentsHandler.GetCollaborators)
+			docAccess.POST("/documents/:id/collaborators", documentsHandler.AddCollaborator)
+			docAccess.DELETE("/documents/:id/collaborators/:user_id", documentsHandler.RemoveCollaborator)
+		}
 	}
 
 	router.GET("/ws/:document_id", wsService.HandleWebSocket)
