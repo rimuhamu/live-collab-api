@@ -46,7 +46,7 @@ type Event struct {
 func (h *EventHandler) CreateDocumentEvent(c *gin.Context) {
 	userId, err := h.AuthService.GetUserIDFromGinContext(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
@@ -73,15 +73,30 @@ func (h *EventHandler) CreateDocumentEvent(c *gin.Context) {
 	err = h.DB.QueryRow("SELECT owner_id FROM documents WHERE id = $1", documentId).Scan(&ownerId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Document does not exist"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "Document does not exist"})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		}
 		return
 	}
 
-	if ownerId != userId {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Not authorized to create events for this document"})
+	hasEditPermission := false
+	if ownerId == userId {
+		hasEditPermission = true
+	} else {
+		var permission string
+		err = h.DB.QueryRow(`
+			SELECT permission FROM document_collaborators 
+			WHERE document_id = $1 AND user_id = $2
+		`, documentId, userId).Scan(&permission)
+
+		if err == nil && permission == "edit" {
+			hasEditPermission = true
+		}
+	}
+
+	if !hasEditPermission {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You need edit permission to create events for this document"})
 		return
 	}
 
@@ -107,7 +122,13 @@ func (h *EventHandler) CreateDocumentEvent(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create event"})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Event created", "event_id": eventId})
+	c.JSON(http.StatusCreated, gin.H{
+		"message":     "Event created",
+		"event_id":    eventId,
+		"event_type":  req.EventType,
+		"document_id": documentId,
+		"user_id":     userId,
+	})
 }
 
 // GetDocumentEvents godoc
@@ -129,7 +150,7 @@ func (h *EventHandler) CreateDocumentEvent(c *gin.Context) {
 func (h *EventHandler) GetDocumentEvents(c *gin.Context) {
 	userId, err := h.AuthService.GetUserIDFromGinContext(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
@@ -140,19 +161,22 @@ func (h *EventHandler) GetDocumentEvents(c *gin.Context) {
 		return
 	}
 
-	var ownerId int
-	err = h.DB.QueryRow("SELECT owner_id FROM documents WHERE id = $1", documentId).Scan(&ownerId)
+	var hasAccess bool
+	err = h.DB.QueryRow(`
+		SELECT EXISTS(
+			SELECT 1 FROM documents WHERE id = $1 AND owner_id = $2
+			UNION
+			SELECT 1 FROM document_collaborators WHERE document_id = $1 AND user_id = $2
+		)
+	`, documentId, userId).Scan(&hasAccess)
+
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Document does not exist"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
-		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
 
-	if ownerId != userId {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Not authorized to get events for this document"})
+	if !hasAccess {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied - you don't have access to this document"})
 		return
 	}
 
@@ -165,12 +189,12 @@ func (h *EventHandler) GetDocumentEvents(c *gin.Context) {
 	}
 
 	offset, err := strconv.Atoi(offsetParam)
-	if err != nil || offset <= 0 {
+	if err != nil || offset < 0 {
 		offset = 0
 	}
 
 	rows, err := h.DB.Query(
-		"SELECT id, document_id, user_id, event_type, payload, created_at, updated_at FROM events WHERE document_id = $1 ORDER BY created_at LIMIT $2 OFFSET $3",
+		"SELECT id, document_id, user_id, event_type, payload, created_at, updated_at FROM events WHERE document_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
 		documentId, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database query error", "detail": err.Error()})
@@ -194,7 +218,6 @@ func (h *EventHandler) GetDocumentEvents(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"events": events, "limit": limit, "offset": offset})
-
 }
 
 // swagger models for events
