@@ -12,6 +12,7 @@ type Client struct {
 	ID         string
 	DocumentId int
 	UserId     int
+	Permission string
 	Conn       *websocket.Conn
 	Send       chan []byte
 	Hub        *Hub
@@ -75,13 +76,33 @@ func (h *Hub) registerClient(client *Client) {
 
 	h.clients[client.DocumentId][client.ID] = client
 
-	log.Printf("Client %s is connected to document %d. Total clients for doc: %d:\n",
-		client.ID, client.DocumentId, len(h.clients[client.DocumentId]))
+	log.Printf("Client %s (user %d, permission: %s) connected to document %d. Total clients: %d\n",
+		client.ID, client.UserId, client.Permission, client.DocumentId, len(h.clients[client.DocumentId]))
 
+	// Notify all clients about the new user
+	userJoinMsg := &Message{
+		Type:       "user_join",
+		DocumentId: client.DocumentId,
+		UserId:     client.UserId,
+		Payload: map[string]interface{}{
+			"user_id":    client.UserId,
+			"permission": client.Permission,
+		},
+	}
+
+	// Send join notification to all other clients
+	h.broadcastToDocumentExcept(userJoinMsg, client.ID)
+
+	// Send connection confirmation to the new client
 	confirmMsg := &Message{
 		Type:       "connected",
 		DocumentId: client.DocumentId,
 		UserId:     client.UserId,
+		Payload: map[string]interface{}{
+			"client_id":    client.ID,
+			"permission":   client.Permission,
+			"active_users": len(h.clients[client.DocumentId]),
+		},
 	}
 
 	if data, err := json.Marshal(confirmMsg); err == nil {
@@ -92,7 +113,6 @@ func (h *Hub) registerClient(client *Client) {
 			delete(h.clients[client.DocumentId], client.ID)
 		}
 	}
-
 }
 
 func (h *Hub) unregisterClient(client *Client) {
@@ -104,14 +124,24 @@ func (h *Hub) unregisterClient(client *Client) {
 			delete(clients, client.ID)
 			close(client.Send)
 
-			log.Printf("Client %s is disconnected from document %d. Remaining clients: %d",
-				client.ID, client.DocumentId, len(clients))
+			log.Printf("Client %s (user %d) disconnected from document %d. Remaining clients: %d",
+				client.ID, client.UserId, client.DocumentId, len(clients))
+
+			// Notify other clients about user leaving
+			userLeaveMsg := &Message{
+				Type:       "user_leave",
+				DocumentId: client.DocumentId,
+				UserId:     client.UserId,
+				Payload: map[string]interface{}{
+					"user_id": client.UserId,
+				},
+			}
+			h.broadcastToDocumentExcept(userLeaveMsg, client.ID)
 
 			if len(clients) == 0 {
 				delete(h.clients, client.DocumentId)
 			}
 		}
-
 	}
 }
 
@@ -144,6 +174,35 @@ func (h *Hub) broadcastToDocument(message *Message) {
 	}
 }
 
+func (h *Hub) broadcastToDocumentExcept(message *Message, exceptClientId string) {
+	h.mutex.RLock()
+	clients := h.clients[message.DocumentId]
+	h.mutex.RUnlock()
+
+	if clients == nil {
+		return
+	}
+
+	data, err := json.Marshal(message)
+	if err != nil {
+		log.Printf("Error marshalling message: %v", err)
+		return
+	}
+
+	for clientId, client := range clients {
+		if client == nil || clientId == exceptClientId {
+			continue
+		}
+
+		select {
+		case client.Send <- data:
+		default:
+			close(client.Send)
+			delete(clients, clientId)
+		}
+	}
+}
+
 func (h *Hub) GetDocumentClientCount(documentId int) int {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
@@ -152,6 +211,19 @@ func (h *Hub) GetDocumentClientCount(documentId int) int {
 		return len(clients)
 	}
 	return 0
+}
+
+func (h *Hub) GetDocumentClients(documentId int) []*Client {
+	h.mutex.RLock()
+	defer h.mutex.RUnlock()
+
+	clients := make([]*Client, 0)
+	if docClients, exists := h.clients[documentId]; exists {
+		for _, client := range docClients {
+			clients = append(clients, client)
+		}
+	}
+	return clients
 }
 
 func (h *Hub) BroadcastMessage(message *Message) {
