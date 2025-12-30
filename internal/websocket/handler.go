@@ -42,7 +42,6 @@ type WebSocketHandler struct {
 }
 
 func (ws *WebSocketHandler) HandleWebSocket(c *gin.Context) {
-	// get document id
 	documentIdStr := c.Param("document_id")
 	documentId, err := strconv.Atoi(documentIdStr)
 	if err != nil {
@@ -50,14 +49,14 @@ func (ws *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	// authenticate user from token
 	userId, err := ws.AuthService.GetUserIDFromGinContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
 	}
 
-	// verify user access to document
-	if !ws.hasDocumentAccess(userId, documentId) {
+	hasAccess, permission := ws.hasDocumentAccess(userId, documentId)
+	if !hasAccess {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 		return
 	}
@@ -72,6 +71,7 @@ func (ws *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 		ID:         uuid.New().String(),
 		DocumentId: documentId,
 		UserId:     userId,
+		Permission: permission,
 		Conn:       conn,
 		Send:       make(chan []byte, 256),
 		Hub:        ws.Hub,
@@ -111,10 +111,26 @@ func (c *Client) readPump(ws *WebSocketHandler) {
 			continue
 		}
 
+		// Add user info to message
+		message.UserId = c.UserId
+		message.DocumentId = c.DocumentId
+
 		switch message.Type {
 		case "edit":
+			if c.Permission != "edit" && c.Permission != "owner" {
+				log.Printf("User %d attempted to edit document %d with %s permission", c.UserId, c.DocumentId, c.Permission)
+				errorMsg := map[string]string{
+					"type":  "error",
+					"error": "You need edit permission to modify this document",
+				}
+				if data, err := json.Marshal(errorMsg); err == nil {
+					c.Send <- data
+				}
+				continue
+			}
 			ws.handleEditMessage(&message)
 		case "cursor":
+			// Cursor updates are allowed for all users with access
 			ws.handleCursorMessage(&message)
 		default:
 			log.Printf("Unknown message type: %v", message.Type)
@@ -164,7 +180,6 @@ func (c *Client) writePump() {
 }
 
 func (ws *WebSocketHandler) handleEditMessage(message *Message) {
-	// parse edit event from payload
 	payloadBytes, err := json.Marshal(message.Payload)
 	if err != nil {
 		log.Printf("Error marshaling payload: %v", err)
@@ -197,21 +212,39 @@ func (ws *WebSocketHandler) handleEditMessage(message *Message) {
 
 	ws.Hub.BroadcastMessage(message)
 
-	log.Printf("Processed edit event for document %d, version %d", message.DocumentId, message.Version)
+	log.Printf("Processed edit event for document %d, version %d by user %d", message.DocumentId, message.Version, message.UserId)
 }
 
 func (ws *WebSocketHandler) handleCursorMessage(message *Message) {
 	ws.Hub.BroadcastMessage(message)
 }
 
-func (ws *WebSocketHandler) hasDocumentAccess(userId, documentId int) bool {
+func (ws *WebSocketHandler) hasDocumentAccess(userId, documentId int) (bool, string) {
 	var ownerId int
 	err := ws.DB.QueryRow("SELECT owner_id FROM documents WHERE id = $1", documentId).Scan(&ownerId)
 	if err != nil {
-		return false
+		return false, ""
 	}
 
-	return ownerId == userId
+	if ownerId == userId {
+		return true, "owner"
+	}
+
+	var permission string
+	err = ws.DB.QueryRow(`
+		SELECT permission FROM document_collaborators 
+		WHERE document_id = $1 AND user_id = $2
+	`, documentId, userId).Scan(&permission)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, ""
+		}
+		log.Printf("Error checking collaborator access: %v", err)
+		return false, ""
+	}
+
+	return true, permission
 }
 
 func (ws *WebSocketHandler) getCurrentDocumentVersion(documentID int) (int, error) {
@@ -257,7 +290,7 @@ func (ws *WebSocketHandler) applyEditToDocument(documentId int, edit *EditEvent)
 
 	newContent := ws.applyEdit(content, edit)
 
-	_, err = ws.DB.Exec("UPDATE documents SET content = $1 WHERE id = $2", newContent, documentId)
+	_, err = ws.DB.Exec("UPDATE documents SET content = $1, updated_at = NOW() WHERE id = $2", newContent, documentId)
 	return err
 }
 
