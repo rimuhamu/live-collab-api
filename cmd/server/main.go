@@ -9,11 +9,13 @@ import (
 	"live-collab-api/internal/websocket"
 	"log"
 	"net/http"
+	"os"
 
 	_ "live-collab-api/docs"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
@@ -38,6 +40,14 @@ import (
 // @name Authorization
 // @description Type "Bearer" followed by a space and JWT token.
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("No .env file found in current directory. Checking parent directories...")
+		// Load from root if running from cmd/server
+		if err := godotenv.Load("../../.env"); err != nil {
+			log.Printf("Still cound not load .env. Current dir: %s", os.Getenv("PWD"))
+		}
+	}
 	cfg := config.LoadConfig()
 	database := db.Connect(cfg.DBUrl)
 	jwtSecret := cfg.JWTSecret
