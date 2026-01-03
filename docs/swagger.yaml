@@ -1,0 +1,870 @@
+basePath: /
+definitions:
+  auth.ErrorResponse:
+    properties:
+      error:
+        example: Invalid input
+        type: string
+    type: object
+  auth.LoginRequest:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      password:
+        example: password123
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  auth.LoginResponse:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzY5OTc4NTYsInVzZXJfaWQiOjF9.Xg2Lv8K3oPHx9vXzF2dA1kT7mN8qR5wE
+        type: string
+      user_id:
+        example: 1
+        type: integer
+    type: object
+  auth.MessageResponse:
+    properties:
+      message:
+        example: User created successfully
+        type: string
+    type: object
+  auth.RegisterRequest:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      password:
+        example: password123
+        minLength: 6
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  auth.UserProfileResponse:
+    properties:
+      created_at:
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      email:
+        example: user@example.com
+        type: string
+      user_id:
+        example: 1
+        type: integer
+    type: object
+  documents.AddCollaboratorRequest:
+    properties:
+      permission:
+        enum:
+        - view
+        - edit
+        example: edit
+        type: string
+      user_id:
+        example: 2
+        type: integer
+    required:
+    - permission
+    - user_id
+    type: object
+  documents.CollaboratorListResponse:
+    properties:
+      collaborators:
+        items:
+          $ref: '#/definitions/documents.CollaboratorResponse'
+        type: array
+    type: object
+  documents.CollaboratorResponse:
+    properties:
+      created_at:
+        example: "2025-09-19T10:30:00Z"
+        type: string
+      document_id:
+        example: 1
+        type: integer
+      email:
+        example: collaborator@example.com
+        type: string
+      id:
+        example: 1
+        type: integer
+      permission:
+        example: edit
+        type: string
+      user_id:
+        example: 2
+        type: integer
+    type: object
+  documents.CreateDocumentRequest:
+    properties:
+      content:
+        example: Initial content for the document
+        type: string
+      title:
+        example: My Collaborative Document
+        type: string
+    required:
+    - title
+    type: object
+  documents.DocumentListResponse:
+    properties:
+      documents:
+        items:
+          $ref: '#/definitions/documents.DocumentResponse'
+        type: array
+    type: object
+  documents.DocumentResponse:
+    properties:
+      content:
+        example: Document content here
+        type: string
+      content_type:
+        example: text/plain
+        type: string
+      created_at:
+        example: "2025-09-19T10:30:00Z"
+        type: string
+      id:
+        example: 1
+        type: integer
+      owner_id:
+        example: 1
+        type: integer
+      title:
+        example: My Collaborative Document
+        type: string
+    type: object
+  documents.ErrorResponse:
+    properties:
+      error:
+        example: Error message describing what went wrong
+        type: string
+    type: object
+  documents.EventListResponse:
+    properties:
+      count:
+        example: 10
+        type: integer
+      events:
+        items:
+          $ref: '#/definitions/documents.EventResponse'
+        type: array
+      limit:
+        example: 100
+        type: integer
+    type: object
+  documents.EventResponse:
+    properties:
+      created_at:
+        example: "2025-09-19T10:30:00Z"
+        type: string
+      document_id:
+        example: 1
+        type: integer
+      event_type:
+        example: edit
+        type: string
+      id:
+        example: 1
+        type: integer
+      payload:
+        additionalProperties: true
+        type: object
+      user_id:
+        example: 1
+        type: integer
+    type: object
+  documents.MessageResponse:
+    properties:
+      message:
+        example: Operation completed successfully
+        type: string
+    type: object
+  documents.UpdateDocumentRequest:
+    properties:
+      title:
+        example: Updated Document Title
+        type: string
+    required:
+    - title
+    type: object
+  events.CreateEventRequest:
+    properties:
+      event_type:
+        enum:
+        - text_insert
+        - text_delete
+        - text_replace
+        - cursor_move
+        - selection
+        - document_save
+        - document_open
+        - user_join
+        - user_leave
+        example: text_insert
+        type: string
+      payload:
+        example: '{"position":10,"text":"Hello World","timestamp":"2024-01-15T10:30:00Z"}'
+        type: string
+    required:
+    - event_type
+    - payload
+    type: object
+  events.CreateEventResponse:
+    properties:
+      document_id:
+        example: 1
+        type: integer
+      event_id:
+        example: 1
+        type: integer
+      event_type:
+        example: text_insert
+        type: string
+      message:
+        example: Event created successfully
+        type: string
+      user_id:
+        example: 1
+        type: integer
+    type: object
+  events.ErrorResponse:
+    properties:
+      error:
+        example: Error message
+        type: string
+    type: object
+  events.EventListResponse:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/events.EventResponse'
+        type: array
+      limit:
+        example: 50
+        type: integer
+      offset:
+        example: 0
+        type: integer
+      total:
+        example: 3
+        type: integer
+    type: object
+  events.EventResponse:
+    properties:
+      created_at:
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      document_id:
+        example: 1
+        type: integer
+      event_type:
+        example: text_insert
+        type: string
+      id:
+        example: 1
+        type: integer
+      payload:
+        example: '{"position":10,"text":"Hello"}'
+        type: string
+      updated_at:
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      user_id:
+        example: 1
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: A collaborative document editing API with real-time features
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Live Collaboration API
+  version: "1.0"
+paths:
+  /api/documents:
+    get:
+      description: Retrieve all documents owned by the authenticated user, ordered
+        by creation date (newest first)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of user documents
+          schema:
+            $ref: '#/definitions/documents.DocumentListResponse'
+        "401":
+          description: Unauthorized - invalid or missing JWT token
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all user documents
+      tags:
+      - documents
+    post:
+      consumes:
+      - application/json
+      description: Create a new document for collaborative editing. Optionally include
+        initial content that will be tracked as the first edit event.
+      parameters:
+      - description: Document creation data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/documents.CreateDocumentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Document created successfully
+          schema:
+            $ref: '#/definitions/documents.DocumentResponse'
+        "400":
+          description: Invalid input data
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "401":
+          description: Unauthorized - invalid or missing JWT token
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new document
+      tags:
+      - documents
+  /api/documents/{id}:
+    delete:
+      description: Delete a document and all its associated events. User can only
+        delete documents they own. This action cannot be undone.
+      parameters:
+      - description: Document ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Document deleted successfully
+          schema:
+            $ref: '#/definitions/documents.MessageResponse'
+        "400":
+          description: Invalid document ID
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "401":
+          description: Unauthorized - invalid or missing JWT token
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "403":
+          description: Access denied - you don't own this document
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "404":
+          description: Document not found
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete document
+      tags:
+      - documents
+    get:
+      description: Retrieve a specific document by its ID. User can only access documents
+        they own.
+      parameters:
+      - description: Document ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Document details
+          schema:
+            $ref: '#/definitions/documents.DocumentResponse'
+        "400":
+          description: Invalid document ID
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "401":
+          description: Unauthorized - invalid or missing JWT token
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "403":
+          description: Access denied - you don't own this document
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "404":
+          description: Document not found
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get document by ID
+      tags:
+      - documents
+    put:
+      consumes:
+      - application/json
+      description: Update a document's title. User can only update documents they
+        own. Content updates should be done via WebSocket for real-time collaboration.
+      parameters:
+      - description: Document ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Document update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/documents.UpdateDocumentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Document updated successfully
+          schema:
+            $ref: '#/definitions/documents.MessageResponse'
+        "400":
+          description: Invalid input data or document ID
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "401":
+          description: Unauthorized - invalid or missing JWT token
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "403":
+          description: Access denied - you don't own this document
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "404":
+          description: Document not found
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update document title
+      tags:
+      - documents
+  /api/documents/{id}/collaborators:
+    get:
+      description: Get list of all collaborators for a document. User must have access
+        to the document.
+      parameters:
+      - description: Document ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of collaborators
+          schema:
+            $ref: '#/definitions/documents.CollaboratorListResponse'
+        "400":
+          description: Invalid document ID
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "401":
+          description: Unauthorized - invalid or missing JWT token
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "403":
+          description: Access denied - you don't have access to this document
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get document collaborators
+      tags:
+      - collaboration
+    post:
+      consumes:
+      - application/json
+      description: Add a user as a collaborator to a document. Only the document owner
+        can add collaborators.
+      parameters:
+      - description: Document ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Collaborator data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/documents.AddCollaboratorRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Collaborator added successfully
+          schema:
+            $ref: '#/definitions/documents.MessageResponse'
+        "400":
+          description: Invalid input data
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "401":
+          description: Unauthorized - invalid or missing JWT token
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "403":
+          description: Access denied - only owner can add collaborators
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "404":
+          description: Document or user not found
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Add collaborator to document
+      tags:
+      - collaboration
+  /api/documents/{id}/collaborators/{user_id}:
+    delete:
+      description: Remove a user's collaboration access from a document. Only the
+        document owner can remove collaborators.
+      parameters:
+      - description: Document ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: User ID to remove
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Collaborator removed successfully
+          schema:
+            $ref: '#/definitions/documents.MessageResponse'
+        "400":
+          description: Invalid input data
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "401":
+          description: Unauthorized - invalid or missing JWT token
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "403":
+          description: Access denied - only owner can remove collaborators
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "404":
+          description: Collaborator not found
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Remove collaborator from document
+      tags:
+      - collaboration
+  /api/documents/{id}/events:
+    get:
+      description: Retrieve edit events for a specific document with optional pagination.
+        User can only access events for documents they own. Events are ordered by
+        creation date (newest first).
+      parameters:
+      - description: Document ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 100
+        description: 'Maximum number of events to return (default: 100, max: 1000)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of document events
+          schema:
+            $ref: '#/definitions/documents.EventListResponse'
+        "400":
+          description: Invalid document ID or parameters
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "401":
+          description: Unauthorized - invalid or missing JWT token
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "403":
+          description: Access denied - you don't own this document
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "404":
+          description: Document not found
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/documents.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get document edit events
+      tags:
+      - documents
+  /documents/{id}/events:
+    get:
+      description: Get all events for a specific document with pagination. User can
+        only access events for documents they own.
+      parameters:
+      - description: Document ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 50
+        description: Number of events to return (default 50, max 1000)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of events to skip (default 0)
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of events with pagination info
+          schema:
+            $ref: '#/definitions/events.EventListResponse'
+        "400":
+          description: Invalid document ID or parameters
+          schema:
+            $ref: '#/definitions/events.ErrorResponse'
+        "401":
+          description: Unauthorized - invalid or missing token
+          schema:
+            $ref: '#/definitions/events.ErrorResponse'
+        "403":
+          description: Access denied - you don't own this document
+          schema:
+            $ref: '#/definitions/events.ErrorResponse'
+        "404":
+          description: Document not found
+          schema:
+            $ref: '#/definitions/events.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/events.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get document events
+      tags:
+      - events
+    post:
+      consumes:
+      - application/json
+      description: Create a new event for collaborative editing (text operations,
+        cursor movements, etc.). User can only create events for documents they own.
+      parameters:
+      - description: Document ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Event data with type and payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/events.CreateEventRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Event created successfully
+          schema:
+            $ref: '#/definitions/events.CreateEventResponse'
+        "400":
+          description: Invalid input data or event type
+          schema:
+            $ref: '#/definitions/events.ErrorResponse'
+        "401":
+          description: Unauthorized - invalid or missing token
+          schema:
+            $ref: '#/definitions/events.ErrorResponse'
+        "403":
+          description: Access denied - you don't own this document
+          schema:
+            $ref: '#/definitions/events.ErrorResponse'
+        "404":
+          description: Document not found
+          schema:
+            $ref: '#/definitions/events.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/events.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create document event
+      tags:
+      - events
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return JWT token for accessing protected
+        endpoints
+      parameters:
+      - description: User login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful with JWT token
+          schema:
+            $ref: '#/definitions/auth.LoginResponse'
+        "400":
+          description: Invalid input data
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      summary: Login user
+      tags:
+      - authentication
+  /me:
+    get:
+      description: Get current authenticated user information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.UserProfileResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user profile
+      tags:
+      - user
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account with email and password
+      parameters:
+      - description: User registration data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User created successfully
+          schema:
+            $ref: '#/definitions/auth.MessageResponse'
+        "400":
+          description: Invalid input data
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "409":
+          description: User already exists
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      summary: Register a new user
+      tags:
+      - authentication
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
