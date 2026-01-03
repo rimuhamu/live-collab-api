@@ -367,7 +367,7 @@ type EventResponse struct {
 	DocumentID int                    `json:"document_id" example:"1"`
 	UserID     int                    `json:"user_id" example:"1"`
 	EventType  string                 `json:"event_type" example:"edit"`
-	Payload    map[string]interface{} `json:"payload" example:"{\"type\":\"edit\",\"version\":1,\"payload\":{\"op\":\"insert\",\"pos\":0,\"content\":\"Hello\"}}"`
+	Payload    map[string]interface{} `json:"payload"`
 	CreatedAt  string                 `json:"created_at" example:"2025-09-19T10:30:00Z"`
 }
 
