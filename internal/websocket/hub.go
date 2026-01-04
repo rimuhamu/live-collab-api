@@ -68,7 +68,6 @@ func (h *Hub) Run() {
 
 func (h *Hub) registerClient(client *Client) {
 	h.mutex.Lock()
-	defer h.mutex.Unlock()
 
 	if h.clients[client.DocumentId] == nil {
 		h.clients[client.DocumentId] = make(map[string]*Client)
@@ -79,6 +78,7 @@ func (h *Hub) registerClient(client *Client) {
 	log.Printf("Client %s (user %d, permission: %s) connected to document %d. Total clients: %d\n",
 		client.ID, client.UserId, client.Permission, client.DocumentId, len(h.clients[client.DocumentId]))
 
+	h.mutex.Unlock()
 	// Notify all clients about the new user
 	userJoinMsg := &Message{
 		Type:       "user_join",
@@ -110,22 +110,28 @@ func (h *Hub) registerClient(client *Client) {
 		case client.Send <- data:
 		default:
 			close(client.Send)
-			delete(h.clients[client.DocumentId], client.ID)
 		}
 	}
 }
 
 func (h *Hub) unregisterClient(client *Client) {
 	h.mutex.Lock()
-	defer h.mutex.Unlock()
 
 	if clients, exists := h.clients[client.DocumentId]; exists {
 		if _, exists := clients[client.ID]; exists {
 			delete(clients, client.ID)
 			close(client.Send)
 
+			remainingClients := len(clients)
+
 			log.Printf("Client %s (user %d) disconnected from document %d. Remaining clients: %d",
-				client.ID, client.UserId, client.DocumentId, len(clients))
+				client.ID, client.UserId, client.DocumentId, remainingClients)
+
+			if remainingClients == 0 {
+				delete(h.clients, client.DocumentId)
+			}
+
+			h.mutex.Unlock()
 
 			// Notify other clients about user leaving
 			userLeaveMsg := &Message{
@@ -137,12 +143,10 @@ func (h *Hub) unregisterClient(client *Client) {
 				},
 			}
 			h.broadcastToDocumentExcept(userLeaveMsg, client.ID)
-
-			if len(clients) == 0 {
-				delete(h.clients, client.DocumentId)
-			}
+			return
 		}
 	}
+	h.mutex.Unlock()
 }
 
 func (h *Hub) broadcastToDocument(message *Message) {
