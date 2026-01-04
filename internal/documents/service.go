@@ -38,13 +38,13 @@ type Collaborator struct {
 	CreatedAt  string `json:"created_at"`
 }
 
-func (ds *DocumentService) CreateDocument(title string, ownerId int) (*Document, error) {
+func (ds *DocumentService) CreateDocument(title string, ownerId int, content string) (*Document, error) {
 	var doc Document
 	err := ds.DB.QueryRow(`
 		INSERT INTO documents (title, owner_id, content, content_type, created_at)
-		VALUES ($1, $2, '', 'text/plain', now())
+		VALUES ($1, $2, $3, 'text/plain', now())
 		RETURNING id, title, content, content_type, owner_id, created_at
-	`, title, ownerId).Scan(&doc.ID, &doc.Title, &doc.Content, &doc.ContentType, &doc.OwnerId, &doc.CreatedAt)
+	`, title, ownerId, content).Scan(&doc.ID, &doc.Title, &doc.Content, &doc.ContentType, &doc.OwnerId, &doc.CreatedAt)
 
 	if err != nil {
 		return nil, fmt.Errorf("error creating document: %v", err)

@@ -40,7 +40,7 @@ func (dh *DocumentHandler) CreateDocument(c *gin.Context) {
 		return
 	}
 
-	document, err := dh.DocumentService.CreateDocument(req.Title, userID)
+	document, err := dh.DocumentService.CreateDocument(req.Title, userID, req.Content)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create document"})
 		return
