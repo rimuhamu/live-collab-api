@@ -139,6 +139,24 @@ func TestHub_BroadcastMessage(t *testing.T) {
 		Hub:        hub,
 	}
 
+	// Register first client
+	hub.register <- client1
+	time.Sleep(100 * time.Millisecond)
+
+	// First client should receive "connected" message
+	select {
+	case msg := <-client1.Send:
+		var receivedMsg Message
+		if err := json.Unmarshal(msg, &receivedMsg); err != nil {
+			t.Fatalf("Error unmarshaling connected message: %v", err)
+		}
+		if receivedMsg.Type != "connected" {
+			t.Errorf("Expected 'connected' message, got '%s'", receivedMsg.Type)
+		}
+	case <-time.After(1 * time.Second):
+		t.Error("Client 1 did not receive connected message")
+	}
+
 	client2 := &Client{
 		ID:         "client-2",
 		DocumentId: 1,
@@ -148,9 +166,40 @@ func TestHub_BroadcastMessage(t *testing.T) {
 		Hub:        hub,
 	}
 
-	hub.register <- client1
+	// Register second client
 	hub.register <- client2
 	time.Sleep(100 * time.Millisecond)
+
+	// Client 1 should receive "user_join" notification
+	select {
+	case msg := <-client1.Send:
+		var receivedMsg Message
+		if err := json.Unmarshal(msg, &receivedMsg); err != nil {
+			t.Fatalf("Error unmarshaling user_join message: %v", err)
+		}
+		if receivedMsg.Type != "user_join" {
+			t.Errorf("Expected 'user_join' message, got '%s'", receivedMsg.Type)
+		}
+		if receivedMsg.UserId != 2 {
+			t.Errorf("Expected user_join for user 2, got user %d", receivedMsg.UserId)
+		}
+	case <-time.After(1 * time.Second):
+		t.Error("Client 1 did not receive user_join message")
+	}
+
+	// Client 2 should receive "connected" message
+	select {
+	case msg := <-client2.Send:
+		var receivedMsg Message
+		if err := json.Unmarshal(msg, &receivedMsg); err != nil {
+			t.Fatalf("Error unmarshaling connected message: %v", err)
+		}
+		if receivedMsg.Type != "connected" {
+			t.Errorf("Expected 'connected' message, got '%s'", receivedMsg.Type)
+		}
+	case <-time.After(1 * time.Second):
+		t.Error("Client 2 did not receive connected message")
+	}
 
 	message := &Message{
 		Type:       "edit",
@@ -166,30 +215,19 @@ func TestHub_BroadcastMessage(t *testing.T) {
 	hub.BroadcastMessage(message)
 	time.Sleep(100 * time.Millisecond)
 
-	select {
-	case msg := <-client1.Send:
-		var receivedMsg Message
-		if err := json.Unmarshal(msg, &receivedMsg); err != nil {
-			t.Errorf("Error unmarshaling message: %v", err)
+	for _, client := range []*Client{client1, client2} {
+		select {
+		case msg := <-client.Send:
+			var receivedMsg Message
+			if err := json.Unmarshal(msg, &receivedMsg); err != nil {
+				t.Errorf("Error unmarshaling edit message: %v", err)
+			}
+			if receivedMsg.Type != "edit" {
+				t.Errorf("Expected 'edit' message, got '%s'", receivedMsg.Type)
+			}
+		case <-time.After(1 * time.Second):
+			t.Errorf("Client %s did not receive edit message", client.ID)
 		}
-		if receivedMsg.Type != "edit" {
-			t.Errorf("Expected message type 'edit', got %s", receivedMsg.Type)
-		}
-	case <-time.After(1 * time.Second):
-		t.Error("Client 1 did not receive message")
-	}
-
-	select {
-	case msg := <-client2.Send:
-		var receivedMsg Message
-		if err := json.Unmarshal(msg, &receivedMsg); err != nil {
-			t.Errorf("Error unmarshaling message: %v", err)
-		}
-		if receivedMsg.Type != "edit" {
-			t.Errorf("Expected message type 'edit', got %s", receivedMsg.Type)
-		}
-	case <-time.After(1 * time.Second):
-		t.Error("Client 2 did not receive message")
 	}
 }
 
@@ -376,6 +414,38 @@ func TestWebSocketHandler_ApplyEdit_Delete(t *testing.T) {
 
 	if result != expected {
 		t.Errorf("Expected '%s', got '%s'", expected, result)
+	}
+}
+
+func TestWebSocketHandler_PersistEvent(t *testing.T) {
+	wsHandler, mock, _, _, _ := setupWebSocketTest(t)
+	defer wsHandler.DB.Close()
+
+	message := &Message{
+		Type:       "edit",
+		DocumentId: 1,
+		UserId:     1,
+		Version:    2,
+		Timestamp:  time.Now().Unix(),
+		Payload: map[string]interface{}{
+			"operation": "insert",
+			"position":  0,
+			"content":   "Hello",
+		},
+	}
+
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO events (document_id, user_id, event_type, payload, created_at)")).
+		WithArgs(message.DocumentId, message.UserId, message.Type, sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	err := wsHandler.persistEvent(message)
+
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("Unfulfilled expectations: %s", err)
 	}
 }
 
