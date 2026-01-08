@@ -20,7 +20,6 @@ DATABASE_URL=
 JWT_SECRET=
 FRONTEND_URL=
 ALLOWED_ORIGINS=
-REDIS_URL=
 ```
 
 ### 3. Install dependencies
@@ -65,6 +64,7 @@ Test specific package:
 ```bash
 go test ./internal/auth -v
 go test ./internal/documents -v
+go test ./internal/websocket -v
 ```
 
 ## Stopping the Server
